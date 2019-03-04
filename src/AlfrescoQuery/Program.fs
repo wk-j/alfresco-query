@@ -1,4 +1,10 @@
 ﻿open System
+open AlfrescoAuthApi
+open System.Threading
+open System
+open System
+open System
+open Newtonsoft.Json
 
 type Options = {
     Path: string
@@ -52,7 +58,74 @@ let main argv =
           Password = "admin"
           Host = "http://localhost:8082" }
 
+    let getTicket() =
+        let url = "http://localhost:8082"
+        let auth = AlfrescoAuthApi.AlfrescoAuth()
+        auth.Init(url)
+
+        let body = TicketBody(UserId = "admin", Password = "admin")
+        let token = CancellationToken.None
+        let data =
+            auth.CreateTicketAsync(body,token)
+            |> Async.AwaitTask
+            |> Async.RunSynchronously
+        data.Entry.Id
+
+
+    let url = "http://localhost:8082"
+    let ticket = getTicket()
     let options = parseArgs args init
-    printfn "%A" options
+
+    let client = AlfrescoCoreApi.AlfrescoCore()
+    client.Init(url, ticket)
+
+    let token = CancellationToken.None
+
+    (*
+    string nodeId,
+    int? skipCount,
+    int? maxItems,
+    IEnumerable<string> orderBy,
+    string where,
+    IEnumerable<string> include,
+    string relativePath,
+    bool? includeSource,
+    IEnumerable<string> fields
+    *)
+
+    let skipCount = Nullable(0)
+    let maxItems = Nullable(2)
+    let orderBy = ["createDate"]
+    let where = "(isFile=true)"
+    let includes = [
+        "path"
+        "properties"
+    ]
+    let relative = "/x/y/z"
+    let source = Nullable(false)
+    let fields = [
+    ]
+
+    let items =
+        client.ListNodeChildrenAsync(
+            "-root-",
+            skipCount,
+            maxItems,
+            orderBy,
+            where,
+            includes,
+            relative,
+            source,
+            fields,
+            token
+        )
+        |> Async.AwaitTask
+        |> Async.RunSynchronously
+
+    for item in items.List.Entries do
+        printfn "%A" item.Entry.Name
+
+        let a= JsonConvert.SerializeObject(item)
+        printfn "%A" a
 
     0
