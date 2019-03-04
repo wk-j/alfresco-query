@@ -1,0 +1,9 @@
+{
+    "query": {
+        "query": "SELECT * FROM cmis:document where cmis:creationDate > TIMESTAMP '2014-05-22T00:00:00.000+00:00' ORDER BY cmis:creationDate DESC",
+        "language": "cmis"
+    },
+    "paging": {
+        "maxItems": "2"
+    }
+}

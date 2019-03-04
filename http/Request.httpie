@@ -1,0 +1,4 @@
+http
+POST http://localhost:8082/alfresco/api/-default-/public/search/versions/1/search
+--auth admin:admin
+< http/Query.json
