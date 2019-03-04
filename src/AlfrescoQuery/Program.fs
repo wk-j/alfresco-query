@@ -5,6 +5,7 @@ open System
 open System
 open System
 open Newtonsoft.Json
+open System
 
 type Options = {
     Path: string
@@ -94,8 +95,10 @@ let main argv =
     *)
 
     let skipCount = Nullable(0)
-    let maxItems = Nullable(2)
-    let orderBy = ["createDate"]
+    let maxItems = Nullable(10)
+    let orderBy = [
+        "createdAt desc"
+        ]
     let where = "(isFile=true)"
     let includes = [
         "path"
@@ -103,8 +106,7 @@ let main argv =
     ]
     let relative = "/x/y/z"
     let source = Nullable(false)
-    let fields = [
-    ]
+    let fields = [ ]
 
     let items =
         client.ListNodeChildrenAsync(
@@ -122,10 +124,20 @@ let main argv =
         |> Async.AwaitTask
         |> Async.RunSynchronously
 
-    for item in items.List.Entries do
+    // for item in items.List.Entries do
+    //     printfn "%A" item.Entry.Name
+
+    //     let a= JsonConvert.SerializeObject(item)
+    //     printfn "%A" a
+
+    let items2 =
+        client.FindNodesAsync("*.png", "-root-", skipCount, maxItems, "cm:content", includes, orderBy, fields, token)
+        |> Async.AwaitTask
+        |> Async.RunSynchronously
+
+    for item in items2.List.Entries do
         printfn "%A" item.Entry.Name
 
-        let a= JsonConvert.SerializeObject(item)
-        printfn "%A" a
-
+        // let json = JsonConvert.SerializeObject(item);
+        // printfn "%A" json
     0
