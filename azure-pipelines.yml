@@ -17,7 +17,7 @@ steps:
   inputs:
     version: '2.1.402'
 
-- task: DotNetCoreInstaller@0
+- task: DotNetCoreInstaller@1
   inputs:
     version: '3.0.100-preview-010184'
 
