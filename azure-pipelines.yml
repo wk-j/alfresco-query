@@ -8,7 +8,7 @@ pool:
 
 variables:
   buildConfiguration: 'Release'
-  version: '$(Year:yy).$(Month).$(DayOfMonth).$(Rev:.r)'
+  version: '$(Build.BuildNumber)'
 
 steps:
 
