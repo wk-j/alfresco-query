@@ -1,5 +1,6 @@
 ## Alfresco Query
 
+[![Build Status](https://dev.azure.com/wk-j/alfresco-query/_apis/build/status/wk-j.alfresco-query?branchName=master)](https://dev.azure.com/wk-j/alfresco-query/_build/latest?definitionId=20&branchName=master)
 [![NuGet](https://img.shields.io/nuget/v/wk.AlfrescoQuery.svg)](https://www.nuget.org/packages/wk.AlfrescoQuery)
 
 Show latest upload files
