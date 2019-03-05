@@ -8,7 +8,7 @@ pool:
 
 variables:
   buildConfiguration: 'Release'
-  version: '0.2.1'
+  version: '$(Year:yy).$(Month).$(DayOfMonth).$(Rev:.r)'
 
 steps:
 
@@ -23,7 +23,7 @@ steps:
 #   displayName: 'Build with Cake'
 
 - script: |
-    dotnet pack src/AlfrescoQuery --output $(Build.ArtifactStagingDirectory) /p:Version="$(Year:yy).$(Month).$(DayOfMonth).$(Hours)$(Minutes)" /p:Configuration=Release
+    dotnet pack src/AlfrescoQuery --output $(Build.ArtifactStagingDirectory) /p:Version=$(version) /p:Configuration=Release
   displayName: "Clean and Pack"
 
 - task: PublishBuildArtifacts@1
