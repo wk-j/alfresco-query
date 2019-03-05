@@ -23,12 +23,8 @@ steps:
 #   displayName: 'Build with Cake'
 
 - script: |
-    rm -rf .publish
-    dotnet pack src/AlfrescoQuery --output .publish /p:Version=$(Date:yy.MM.dd.HHmm) /p:Configuration=Release
+    dotnet pack src/AlfrescoQuery --output $(Build.ArtifactStagingDirectory) /p:Version=$(Date:yy.MM.dd.HHmm) /p:Configuration=Release
   displayName: "Clean and Pack"
-
-- script: cp .publish/*.nupkg $(Build.ArtifactStagingDirectory)
-  displayName: 'Copy assets'
 
 - task: PublishBuildArtifacts@1
   displayName: 'Publish artifacts'
