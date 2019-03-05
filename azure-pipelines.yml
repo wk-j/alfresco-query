@@ -17,6 +17,10 @@ steps:
   inputs:
     version: '3.0.100-preview-010184'
 
+- task: DotNetCoreInstaller@0
+  inputs:
+    version: '2.1.402'
+
 - script: dotnet tool install -g Cake.Tool
   displayName: "Install Cake"
 
