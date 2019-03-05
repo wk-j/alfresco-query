@@ -1,11 +1,21 @@
 ﻿open System
 open AlfrescoAuthApi
 open System.Threading
-open System
-open System
-open System
 open Newtonsoft.Json
 open System
+open Newtonsoft.Json.Serialization
+open System.Linq
+open System.Net.Http
+open System.Net.Http.Headers
+open System.Text
+open DynamicTables
+
+type DynamicContractResolver(exclude: string []) =
+    inherit DefaultContractResolver()
+    override __.CreateProperties(types:Type, members:MemberSerialization) =
+        let properties = base.CreateProperties(types, members)
+        let newProperties = properties |> Seq.filter (fun x -> exclude.Contains(x.PropertyName) |> not)
+        upcast System.Collections.Generic.List<JsonProperty>(newProperties)
 
 type Options = {
     Path: string
@@ -20,20 +30,20 @@ let rec parseArgs args options =
     | "--host" :: xs ->
         match xs with
         | value :: xss ->
-            let newOptions = { options with User = value}
-            parseArgs xss options
+            let newOptions = { options with Host = value}
+            parseArgs xss newOptions
         | _ -> parseArgs xs options
     | "--user" :: xs ->
         match xs with
         | value :: xss ->
             let newOptions = { options with User = value }
-            parseArgs xss options
+            parseArgs xss newOptions
         | _ -> parseArgs xs options
     | "--password" :: xs ->
         match xs with
         | value :: xss ->
             let newOptions = { options with Password = value }
-            parseArgs xss options
+            parseArgs xss newOptions
         | _ -> parseArgs xs options
     | "--query" :: xs ->
         match xs with
@@ -49,95 +59,72 @@ let rec parseArgs args options =
         | _ -> parseArgs xs options
     | _ -> options
 
+let getTicket url user password =
+    let auth = AlfrescoAuthApi.AlfrescoAuth()
+    auth.Init(url)
+
+    let body = TicketBody(UserId = "admin", Password = "admin")
+    let token = CancellationToken.None
+    let data =
+        auth.CreateTicketAsync(body,token)
+        |> Async.AwaitTask
+        |> Async.RunSynchronously
+    data.Entry.Id
+
+let basicHeader user password =
+    let byteArray = Encoding.ASCII.GetBytes(sprintf "%s:%s" user password)
+    let base64 = Convert.ToBase64String(byteArray);
+    AuthenticationHeaderValue("Basic", base64)
+
+let defaultOptions() =
+    { Path  = ""
+      Query = ""
+      User  = "admin"
+      Password = "admin"
+      Host = "http://localhost:8082" }
+
+let defaultRequest() =
+    {|
+        query =
+            {| query = "SELECT * FROM cmis:document where cmis:creationDate > TIMESTAMP '2019-01-01T00:00:00.000+00:00' ORDER BY cmis:creationDate DESC"
+               language = "cmis" |}
+        paging =
+            {| maxItems = 10 |}
+    |}
+
 [<EntryPoint>]
 let main argv =
     let args = List.ofArray argv
-    let init =
-        { Path  = ""
-          Query = ""
-          User  = "admin"
-          Password = "admin"
-          Host = "http://localhost:8082" }
+    let options = parseArgs args (defaultOptions())
 
-    let getTicket() =
-        let url = "http://localhost:8082"
-        let auth = AlfrescoAuthApi.AlfrescoAuth()
-        auth.Init(url)
+    let url = options.Host
+    let user = options.User
+    let password = options.Password
+    let ticket = getTicket url user password
+    let api = sprintf "%s/alfresco/api/-default-/public/search/versions/1/search?alf_ticket=%s" options.Host ticket
 
-        let body = TicketBody(UserId = "admin", Password = "admin")
-        let token = CancellationToken.None
-        let data =
-            auth.CreateTicketAsync(body,token)
-            |> Async.AwaitTask
-            |> Async.RunSynchronously
-        data.Entry.Id
+    use client = new HttpClient()
+    let request = defaultRequest()
+    let json = JsonConvert.SerializeObject(request)
+    let content = new StringContent(json)
+    let result =
+        client.PostAsync(api, content)
+        |> Async.AwaitTask
+        |> Async.RunSynchronously
 
+    let body = result.Content.ReadAsStringAsync() |> Async.AwaitTask |> Async.RunSynchronously
+    let page = JsonConvert.DeserializeObject<AlfrescoCoreApi.NodePaging>(body)
 
-    let url = "http://localhost:8082"
-    let ticket = getTicket()
-    let options = parseArgs args init
-
-    let client = AlfrescoCoreApi.AlfrescoCore()
-    client.Init(url, ticket)
-
-    let token = CancellationToken.None
-
-    (*
-    string nodeId,
-    int? skipCount,
-    int? maxItems,
-    IEnumerable<string> orderBy,
-    string where,
-    IEnumerable<string> include,
-    string relativePath,
-    bool? includeSource,
-    IEnumerable<string> fields
-    *)
-
-    let skipCount = Nullable(0)
-    let maxItems = Nullable(10)
-    let orderBy = [
-        "createdAt desc"
-        ]
-    let where = "(isFile=true)"
-    let includes = [
-        "path"
-        "properties"
-    ]
-    let relative = "/x/y/z"
-    let source = Nullable(false)
-    let fields = [ ]
-
-    let items =
-        client.ListNodeChildrenAsync(
-            "-root-",
-            skipCount,
-            maxItems,
-            orderBy,
-            where,
-            includes,
-            relative,
-            source,
-            fields,
-            token
+    let records =
+        page.List.Entries |> Seq.map (fun x ->
+            {|
+                Id = x.Entry.Id
+                Name = x.Entry.Name
+                CreatedAt = x.Entry.CreatedAt
+                ModifiedAt = x.Entry.ModifiedAt
+            |}
         )
-        |> Async.AwaitTask
-        |> Async.RunSynchronously
 
-    // for item in items.List.Entries do
-    //     printfn "%A" item.Entry.Name
+    DynamicTable.From(records).Write();
 
-    //     let a= JsonConvert.SerializeObject(item)
-    //     printfn "%A" a
-
-    let items2 =
-        client.FindNodesAsync("*.png", "-root-", skipCount, maxItems, "cm:content", includes, orderBy, fields, token)
-        |> Async.AwaitTask
-        |> Async.RunSynchronously
-
-    for item in items2.List.Entries do
-        printfn "%A" item.Entry.Name
-
-        // let json = JsonConvert.SerializeObject(item);
-        // printfn "%A" json
     0
