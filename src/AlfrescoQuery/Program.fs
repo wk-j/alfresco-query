@@ -9,6 +9,9 @@ open System.Net.Http
 open System.Net.Http.Headers
 open System.Text
 open DynamicTables
+open AlfrescoCoreApi
+open System.Collections.Generic
+open System.Collections.Generic
 
 type DynamicContractResolver(exclude: string []) =
     inherit DefaultContractResolver()
@@ -22,11 +25,14 @@ type Options = {
     Query: string
     Host: string
     User: string
+    Term: string
     Password: string
 }
 
 let rec parseArgs args options =
     match args with
+    | [term] ->
+        { options with Term = term }
     | "--host" :: xs ->
         match xs with
         | value :: xss ->
@@ -81,6 +87,7 @@ let defaultOptions() =
       Query = ""
       User  = "admin"
       Password = "admin"
+      Term = "*.pdf"
       Host = "http://localhost:8082" }
 
 let defaultRequest() =
@@ -92,10 +99,7 @@ let defaultRequest() =
             {| maxItems = 10 |}
     |}
 
-[<EntryPoint>]
-let main argv =
-    let args = List.ofArray argv
-    let options = parseArgs args (defaultOptions())
+let search options =
 
     let url = options.Host
     let user = options.User
@@ -127,4 +131,61 @@ let main argv =
 
     DynamicTable.From(records).Write();
 
+let q options =
+
+    (*
+    http://localhost:8090/alfresco/api/-default-/public/alfresco/versions/1/queries/nodes
+        ?include=path,properties
+        &term=alfresco*
+        &orderBy=createdAt desc'
+    *)
+
+    let url = options.Host
+    let user = options.User
+    let password = options.Password
+    let term = options.Term
+
+    let ticket = getTicket url user password
+    let api =
+        [ "{url}"
+          "/alfresco/api/-default-/public/alfresco/versions/1/queries/nodes"
+          "?alf_ticket={ticket}"
+          "&include=path,properties"
+          "&term={term}"
+          "&orderBy=createdAt desc"
+          "&maxItems=20" ]
+        |> fun x -> System.String.Concat (x)
+        |> fun x -> x.Replace("{url}", url).Replace("{term}", term).Replace("{ticket}", ticket)
+
+    use client = new HttpClient()
+    let result =
+        client.GetAsync(api)
+        |> Async.AwaitTask
+        |> Async.RunSynchronously
+
+    let body = result.Content.ReadAsStringAsync() |> Async.AwaitTask |> Async.RunSynchronously
+    let page = JsonConvert.DeserializeObject<AlfrescoCoreApi.NodePaging>(body)
+    let excludes = [ "cm:"; "app:" ]
+
+    let records =
+        page.List.Entries |> Seq.map (fun x ->
+            let d = Dictionary<string,string>()
+            // d.["Id"]         <- x.Entry.Id
+            // d.["Name"]       <- x.Entry.Name
+            d.["Path"]       <- x.Entry.Path.Name + "/" + x.Entry.Name
+            d.["CreatedAt"]  <- x.Entry.CreatedAt.ToString("dd/MM/yy HH:mm")
+            // d.["ModifiedAt"] <- x.Entry.ModifiedAt.ToString("dd/MM/yy HH:mm")
+            for item in x.Entry.Properties do
+                if excludes.Any(fun k -> item.Key.Contains(k)) |> not then
+                    d.[item.Key] <- item.Value.ToString()
+            d
+        ) |> Seq.toList
+
+    DynamicTable.From(records).Write();
+
+[<EntryPoint>]
+let main argv =
+    let args = List.ofArray argv
+    let options = parseArgs args (defaultOptions())
+    q options
     0
