@@ -92,16 +92,9 @@ let defaultRequest() =
             {| maxItems = 10 |}
     |}
 
-[<EntryPoint>]
-let main argv =
-    let args = List.ofArray argv
-    let options = parseArgs args (defaultOptions())
-
-    let url = options.Host
-    let user = options.User
-    let password = options.Password
+let search url user password =
     let ticket = getTicket url user password
-    let api = sprintf "%s/alfresco/api/-default-/public/search/versions/1/search?alf_ticket=%s" options.Host ticket
+    let api = sprintf "%s/alfresco/api/-default-/public/search/versions/1/search?alf_ticket=%s" url ticket
 
     use client = new HttpClient()
     let request = defaultRequest()
@@ -113,7 +106,17 @@ let main argv =
         |> Async.RunSynchronously
 
     let body = result.Content.ReadAsStringAsync() |> Async.AwaitTask |> Async.RunSynchronously
-    let page = JsonConvert.DeserializeObject<AlfrescoCoreApi.NodePaging>(body)
+    JsonConvert.DeserializeObject<AlfrescoCoreApi.NodePaging>(body)
+
+[<EntryPoint>]
+let main argv =
+    let args = List.ofArray argv
+    let options = parseArgs args (defaultOptions())
+
+    let url = options.Host
+    let user = options.User
+    let password = options.Password
+    let page = search url user password
 
     let records =
         page.List.Entries |> Seq.map (fun x ->
@@ -126,5 +129,4 @@ let main argv =
         )
 
     DynamicTable.From(records).Write();
-
     0
