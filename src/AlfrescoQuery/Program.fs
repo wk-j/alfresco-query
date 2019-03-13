@@ -118,7 +118,7 @@ let search options =
     JsonConvert.DeserializeObject<AlfrescoCoreApi.NodePaging>(body)
 
 
-let q options =
+let query options =
 
     (*
     http://localhost:8090/alfresco/api/-default-/public/alfresco/versions/1/queries/nodes
@@ -188,10 +188,10 @@ let q options =
     for item in nested do
         DynamicTable.From(item).Write(format)
 
+    0
+
 [<EntryPoint>]
 let main argv =
     let args = List.ofArray argv
     let options = parseArgs args (defaultOptions())
-
-    q options
-    0
+    query options
