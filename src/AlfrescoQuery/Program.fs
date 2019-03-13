@@ -157,7 +157,7 @@ let q options =
 
     let body = result.Content.ReadAsStringAsync() |> Async.AwaitTask |> Async.RunSynchronously
     let page = JsonConvert.DeserializeObject<AlfrescoCoreApi.NodePaging>(body)
-    let excludes = [ "app:" ]
+    let excludes = [ "app:" ; "cm:lastThumbnailModification" ]
 
     let records =
         page.List.Entries |> Seq.map (fun x ->
@@ -169,7 +169,7 @@ let q options =
             d.["ModifiedAt"] <- x.Entry.ModifiedAt.ToString("dd/MM/yy HH:mm")
             for item in x.Entry.Properties.OrderBy(fun x -> x.Key) do
                 if excludes.Any(fun k -> item.Key.Contains(k)) |> not then
-                    d.[" " + item.Key] <- item.Value.ToString()
+                    d.["- " + item.Key] <- item.Value.ToString()
             d
         ) |> Seq.toList
 
