@@ -147,6 +147,8 @@ let q options =
         |> fun x -> System.String.Concat (x)
         |> fun x -> x.Replace("{url}", url).Replace("{term}", term).Replace("{ticket}", ticket)
 
+    printfn "> %s" api
+
     use client = new HttpClient()
     let result =
         client.GetAsync(api)
@@ -155,7 +157,7 @@ let q options =
 
     let body = result.Content.ReadAsStringAsync() |> Async.AwaitTask |> Async.RunSynchronously
     let page = JsonConvert.DeserializeObject<AlfrescoCoreApi.NodePaging>(body)
-    let excludes = [ "cm:"; "app:" ]
+    let excludes = [ "app:" ]
 
     let records =
         page.List.Entries |> Seq.map (fun x ->
@@ -165,9 +167,9 @@ let q options =
             d.["Name"]       <- x.Entry.Name
             d.["CreatedAt"]  <- x.Entry.CreatedAt.ToString("dd/MM/yy HH:mm")
             d.["ModifiedAt"] <- x.Entry.ModifiedAt.ToString("dd/MM/yy HH:mm")
-            for item in x.Entry.Properties do
+            for item in x.Entry.Properties.OrderBy(fun x -> x.Key) do
                 if excludes.Any(fun k -> item.Key.Contains(k)) |> not then
-                    d.[item.Key] <- item.Value.ToString()
+                    d.[" " + item.Key] <- item.Value.ToString()
             d
         ) |> Seq.toList
 
