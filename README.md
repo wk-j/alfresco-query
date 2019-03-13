@@ -12,5 +12,6 @@ dotnet tool install -g wk.AlfrescoQuery
 ## Usage
 
 ```bash
+wk-alfresco-query -h http://localhost:8082 -u admin -p admin "*.pdf"
 wk-alfresco-query --host http://localhost:8082 --user admin --password admin "*.pdf"
 ```

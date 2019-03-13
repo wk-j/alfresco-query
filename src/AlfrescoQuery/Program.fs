@@ -24,7 +24,7 @@ type DynamicContractResolver(exclude: string []) =
 
 type Options = {
     Path: string
-    // Query: string
+    Trace: bool
     Host: string
     User: string
     Term: string
@@ -35,30 +35,26 @@ let rec parseArgs args options =
     match args with
     | [term] ->
         { options with Term = term }
-    | "--host" :: xs ->
+    | "--trace" :: xs | "-t" :: xs ->
+        parseArgs xs { options with Trace = true }
+    | "--host" :: xs  | "-h" :: xs ->
         match xs with
         | value :: xss ->
             let newOptions = { options with Host = value}
             parseArgs xss newOptions
         | _ -> parseArgs xs options
-    | "--user" :: xs ->
+    | "--user" :: xs | "-u" :: xs ->
         match xs with
         | value :: xss ->
             let newOptions = { options with User = value }
             parseArgs xss newOptions
         | _ -> parseArgs xs options
-    | "--password" :: xs ->
+    | "--password" :: xs | "-p" :: xs ->
         match xs with
         | value :: xss ->
             let newOptions = { options with Password = value }
             parseArgs xss newOptions
         | _ -> parseArgs xs options
-    // | "--query" :: xs ->
-    //     match xs with
-    //     | value :: xss ->
-    //         let newOptions = { options with Query = value }
-    //         parseArgs xss newOptions
-    //     | _ -> parseArgs xs options
     | "--path" :: xs ->
         match xs with
         | value :: xss ->
@@ -88,6 +84,7 @@ let defaultOptions() =
     { Path  = ""
       User  = "admin"
       Password = "admin"
+      Trace = false
       Term = "*.pdf"
       Host = "http://localhost:8082" }
 
@@ -147,7 +144,8 @@ let q options =
         |> fun x -> System.String.Concat (x)
         |> fun x -> x.Replace("{url}", url).Replace("{term}", term).Replace("{ticket}", ticket)
 
-    printfn "> %s" api
+    if options.Trace then
+        printfn "> %s" api
 
     use client = new HttpClient()
     let result =
@@ -162,14 +160,14 @@ let q options =
     let records =
         page.List.Entries |> Seq.map (fun x ->
             let d = Dictionary<string,string>()
-            d.["Id"]         <- x.Entry.Id
-            d.["Path"]       <- x.Entry.Path.Name
-            d.["Name"]       <- x.Entry.Name
-            d.["CreatedAt"]  <- x.Entry.CreatedAt.ToString("dd/MM/yy HH:mm")
-            d.["ModifiedAt"] <- x.Entry.ModifiedAt.ToString("dd/MM/yy HH:mm")
+            d.[" Id"]         <- x.Entry.Id
+            d.[" Path"]       <- x.Entry.Path.Name
+            d.[" Name"]       <- x.Entry.Name
+            d.[" CreatedAt"]  <- x.Entry.CreatedAt.ToString()
+            d.[" ModifiedAt"] <- x.Entry.ModifiedAt.ToString()
             for item in x.Entry.Properties.OrderBy(fun x -> x.Key) do
                 if excludes.Any(fun k -> item.Key.Contains(k)) |> not then
-                    d.["- " + item.Key] <- item.Value.ToString()
+                    d.["-" + item.Key] <- item.Value.ToString()
             d
         ) |> Seq.toList
 
